@@ -110,6 +110,14 @@ fn run_through_delta(input: &[u8], side_by_side: bool, col_width: u16) -> io::Re
     if side_by_side {
         cmd.arg("--side-by-side");
         cmd.args(["--width", &col_width.to_string()]);
+    } else {
+        // Delta has no --no-side-by-side flag, so override any global Git setting.
+        let mut config = std::env::var("GIT_CONFIG_PARAMETERS").unwrap_or_default();
+        if !config.is_empty() {
+            config.push(' ');
+        }
+        config.push_str("'delta.side-by-side=false'");
+        cmd.env("GIT_CONFIG_PARAMETERS", config);
     }
     pipe_through(input, &mut cmd, "delta (cargo install git-delta)")
 }

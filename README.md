@@ -24,6 +24,33 @@ cargo build --release
 # binary is at target/release/pager.exe (Windows) or target/release/pager (Unix)
 ```
 
+### Windows: install from `C:\dev\pager`
+
+Build the release executable:
+
+```powershell
+cargo build --release --manifest-path C:\dev\pager\Cargo.toml
+```
+
+Add its directory to the beginning of your user `PATH`:
+
+```powershell
+$pagerBin = "C:\dev\pager\target\release"
+$userPath = [Environment]::GetEnvironmentVariable("Path", "User")
+$entries = @($userPath -split ";" | Where-Object { $_ -and $_ -ne $pagerBin })
+$newPath = (@($pagerBin) + $entries) -join ";"
+[Environment]::SetEnvironmentVariable("Path", $newPath, "User")
+```
+
+Open a new terminal and verify the installed command:
+
+```powershell
+Get-Command pager
+git diff | pager
+```
+
+After changing the app, update the executable by running the build command again.
+
 ## Usage
 
 ```bash
