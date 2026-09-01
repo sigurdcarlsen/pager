@@ -41,7 +41,7 @@ pub fn draw(frame: &mut Frame, app: &App) {
 fn draw_statusbar(frame: &mut Frame, app: &App, page_height: usize, area: Rect) {
     let total = app.lines.len();
     let visible_end = (app.offset + app.columns * page_height).min(total);
-    let pct = if total == 0 { 100 } else { (visible_end * 100) / total };
+    let pct = (visible_end * 100).checked_div(total).unwrap_or(100);
 
     let status_area = Rect {
         x: area.x,
@@ -51,9 +51,14 @@ fn draw_statusbar(frame: &mut Frame, app: &App, page_height: usize, area: Rect) 
     };
 
     let msg = format!(
-        " lines {}-{}/{} {}%  cols:{} \
-         j/k scroll · d/u half-page · f/b page · g/G top/end · +/- cols · q quit ",
-        app.offset + 1, visible_end, total, pct, app.columns,
+        " lines {}-{}/{} {}%  cols:{} mode:{} \
+         j/k scroll · f/b page · +/- cols · v delta view · r raw · x fancy · q quit ",
+        app.offset + 1,
+        visible_end,
+        total,
+        pct,
+        app.columns,
+        app.formatter.label(),
     );
 
     let status = Paragraph::new(msg)

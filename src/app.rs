@@ -1,12 +1,26 @@
+use crate::Formatter;
+
 pub struct App {
     pub lines: Vec<String>,
     pub offset: usize,
     pub columns: usize,
+    pub formatter: Formatter,
 }
 
 impl App {
-    pub fn new(lines: Vec<String>, columns: usize) -> Self {
-        Self { lines, offset: 0, columns }
+    pub fn new(lines: Vec<String>, columns: usize, formatter: Formatter) -> Self {
+        Self {
+            lines,
+            offset: 0,
+            columns,
+            formatter,
+        }
+    }
+
+    pub fn replace_content(&mut self, lines: Vec<String>, formatter: Formatter) {
+        self.lines = lines;
+        self.formatter = formatter;
+        self.offset = 0;
     }
 
     pub fn scroll_down(&mut self, page_height: usize) {

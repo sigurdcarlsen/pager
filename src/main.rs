@@ -14,10 +14,24 @@ use ratatui::{Terminal, backend::CrosstermBackend};
 
 use app::App;
 
+#[derive(Clone, Copy, PartialEq)]
 enum Formatter {
     None,
     Delta { side_by_side: bool },
     Fancy,
+}
+
+impl Formatter {
+    fn label(self) -> &'static str {
+        match self {
+            Self::None => "raw",
+            Self::Delta {
+                side_by_side: false,
+            } => "delta-inline",
+            Self::Delta { side_by_side: true } => "delta-sbs",
+            Self::Fancy => "fancy",
+        }
+    }
 }
 
 struct Args {
@@ -53,26 +67,17 @@ fn parse_args() -> Args {
 fn main() -> io::Result<()> {
     let args = parse_args();
 
-    let term_width = crossterm::terminal::size().map(|(w, _)| w).unwrap_or(220);
-    let col_width = (term_width.saturating_sub(args.columns as u16 * 2)) / args.columns as u16;
-
     let mut stdin_bytes = Vec::new();
     io::stdin().read_to_end(&mut stdin_bytes)?;
 
-    let content = match args.formatter {
-        Formatter::None => String::from_utf8_lossy(&stdin_bytes).into_owned(),
-        Formatter::Delta { side_by_side } => run_through_delta(&stdin_bytes, side_by_side, col_width)?,
-        Formatter::Fancy => run_through_fancy(&stdin_bytes)?,
-    };
-
-    let lines: Vec<String> = content.lines().map(|l| l.to_owned()).collect();
+    let lines = format_lines(&stdin_bytes, args.formatter, args.columns)?;
 
     if lines.is_empty() {
         eprintln!("pager: no input");
         return Ok(());
     }
 
-    let mut app = App::new(lines, args.columns);
+    let mut app = App::new(lines, args.columns, args.formatter);
 
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -80,7 +85,7 @@ fn main() -> io::Result<()> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let result = run_loop(&mut terminal, &mut app);
+    let result = run_loop(&mut terminal, &mut app, &stdin_bytes);
 
     disable_raw_mode()?;
     execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
@@ -122,6 +127,17 @@ fn run_through_delta(input: &[u8], side_by_side: bool, col_width: u16) -> io::Re
     pipe_through(input, &mut cmd, "delta (cargo install git-delta)")
 }
 
+fn format_lines(input: &[u8], formatter: Formatter, columns: usize) -> io::Result<Vec<String>> {
+    let term_width = crossterm::terminal::size().map(|(w, _)| w).unwrap_or(220);
+    let col_width = (term_width.saturating_sub(columns as u16 * 2)) / columns as u16;
+    let content = match formatter {
+        Formatter::None => String::from_utf8_lossy(input).into_owned(),
+        Formatter::Delta { side_by_side } => run_through_delta(input, side_by_side, col_width)?,
+        Formatter::Fancy => run_through_fancy(input)?,
+    };
+    Ok(content.lines().map(|line| line.to_owned()).collect())
+}
+
 fn run_through_fancy(input: &[u8]) -> io::Result<String> {
     let mut cmd = Command::new("diff-so-fancy");
     pipe_through(input, &mut cmd, "diff-so-fancy (npm install -g diff-so-fancy)")
@@ -130,6 +146,7 @@ fn run_through_fancy(input: &[u8]) -> io::Result<String> {
 fn run_loop(
     terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
     app: &mut App,
+    input: &[u8],
 ) -> io::Result<()> {
     loop {
         terminal.draw(|f| ui::draw(f, app))?;
@@ -156,9 +173,39 @@ fn run_loop(
                 (KeyCode::Char('G'), _) | (KeyCode::End, _) => app.scroll_to_end(page_height),
                 (KeyCode::Char('+'), _) | (KeyCode::Char('='), _) => {
                     app.columns = (app.columns + 1).min(8);
+                    if app.formatter == (Formatter::Delta { side_by_side: true }) {
+                        let lines = format_lines(input, app.formatter, app.columns)?;
+                        app.replace_content(lines, app.formatter);
+                    }
                 }
                 (KeyCode::Char('-'), _) => {
                     app.columns = app.columns.saturating_sub(1).max(1);
+                    if app.formatter == (Formatter::Delta { side_by_side: true }) {
+                        let lines = format_lines(input, app.formatter, app.columns)?;
+                        app.replace_content(lines, app.formatter);
+                    }
+                }
+                (KeyCode::Char('v'), _) => {
+                    let formatter = match app.formatter {
+                        Formatter::Delta { side_by_side } => Formatter::Delta {
+                            side_by_side: !side_by_side,
+                        },
+                        _ => Formatter::Delta {
+                            side_by_side: false,
+                        },
+                    };
+                    let lines = format_lines(input, formatter, app.columns)?;
+                    app.replace_content(lines, formatter);
+                }
+                (KeyCode::Char('r'), _) => {
+                    let formatter = Formatter::None;
+                    let lines = format_lines(input, formatter, app.columns)?;
+                    app.replace_content(lines, formatter);
+                }
+                (KeyCode::Char('x'), _) => {
+                    let formatter = Formatter::Fancy;
+                    let lines = format_lines(input, formatter, app.columns)?;
+                    app.replace_content(lines, formatter);
                 }
                 _ => {}
             }

@@ -92,9 +92,14 @@ git log --stat | pager 3
 | `G` / End | jump to bottom |
 | `+` / `=` | add a column |
 | `-` | remove a column |
+| `v` | switch to Delta or toggle inline / side-by-side |
+| `r` | show the raw diff |
+| `x` | show the diff with diff-so-fancy |
 | `q` / Ctrl-C | quit |
 
-Column count can also be changed live with `+`/`-` without restarting.
+The formatter and column count can be changed live without restarting. Press `v` from
+any non-Delta mode to select Delta inline view, then press it again to toggle between
+inline and side-by-side. The CLI arguments only select the initial state.
 
 ## Code structure
 
@@ -105,7 +110,7 @@ src/
   ui.rs     — ratatui rendering: column layout, ANSI parser, status bar
 ```
 
-**`app.rs`** owns the data model: a flat `Vec<String>` of lines (with ANSI codes intact) and a single `offset: usize`. `column_lines(col, page_height)` slices out the right range for each column — column N shows lines `[offset + N*page_height .. offset + (N+1)*page_height]`.
+**`app.rs`** owns the data model: the active formatter, a flat `Vec<String>` of lines (with ANSI codes intact), and a single `offset: usize`. `column_lines(col, page_height)` slices out the right range for each column — column N shows lines `[offset + N*page_height .. offset + (N+1)*page_height]`.
 
 **`ui.rs`** renders using ratatui. It includes a hand-written ANSI SGR parser (`parse_ansi`) that converts escape sequences into ratatui `Span`s with proper styles. This avoids the `ansi-to-tui` crate which had ratatui version conflicts. Supports standard colors (30–37, 90–97), 256-color (`38;5;N`), RGB (`38;2;r;g;b`), and common modifiers (bold, italic, dim, underline, etc.).
 
@@ -114,7 +119,7 @@ src/
 - `Delta { side_by_side }` — spawns `delta --pager never [--side-by-side --width N]`
 - `Fancy` — spawns `diff-so-fancy`
 
-For `--delta-sbs`, the terminal width is queried *before* entering raw mode so we can pass the correct per-column width to delta via `--width`.
+For Delta side-by-side mode, the terminal width is queried so the correct per-column width can be passed to delta via `--width`. The original stdin is retained so formatter hotkeys can regenerate the displayed lines.
 
 ## Dependencies
 
