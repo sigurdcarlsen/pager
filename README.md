@@ -68,8 +68,6 @@ git diff | pager --delta 3
 # pipe through delta side-by-side — each pager column shows a full old|new panel
 git diff | pager --delta-sbs 2
 
-# pipe through diff-so-fancy (requires: npm install -g diff-so-fancy)
-git diff | pager --fancy 2
 ```
 
 Works with anything that produces diff-like output:
@@ -94,7 +92,6 @@ git log --stat | pager 3
 | `-` | remove a column |
 | `v` | switch to Delta or toggle inline / side-by-side |
 | `r` | show the raw diff |
-| `x` | show the diff with diff-so-fancy |
 | `q` / Ctrl-C | quit |
 
 The formatter and column count can be changed live without restarting. Press `v` from
@@ -114,10 +111,9 @@ src/
 
 **`ui.rs`** renders using ratatui. It includes a hand-written ANSI SGR parser (`parse_ansi`) that converts escape sequences into ratatui `Span`s with proper styles. This avoids the `ansi-to-tui` crate which had ratatui version conflicts. Supports standard colors (30–37, 90–97), 256-color (`38;5;N`), RGB (`38;2;r;g;b`), and common modifiers (bold, italic, dim, underline, etc.).
 
-**`main.rs`** handles the three formatter modes via a `Formatter` enum:
+**`main.rs`** handles the formatter modes via a `Formatter` enum:
 - `None` — raw stdin passed directly
 - `Delta { side_by_side }` — spawns `delta --pager never [--side-by-side --width N]`
-- `Fancy` — spawns `diff-so-fancy`
 
 For Delta side-by-side mode, the terminal width is queried so the correct per-column width can be passed to delta via `--width`. The original stdin is retained so formatter hotkeys can regenerate the displayed lines.
 
@@ -133,4 +129,3 @@ No other runtime dependencies. ANSI parsing is done inline rather than via a cra
 | Flag | Tool | Install |
 |------|------|---------|
 | `--delta` / `--delta-sbs` | [delta](https://github.com/dandavison/delta) | `cargo install git-delta` |
-| `--fancy` | [diff-so-fancy](https://github.com/so-fancy/diff-so-fancy) | `npm install -g diff-so-fancy` |

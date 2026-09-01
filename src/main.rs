@@ -18,7 +18,6 @@ use app::App;
 enum Formatter {
     None,
     Delta { side_by_side: bool },
-    Fancy,
 }
 
 impl Formatter {
@@ -29,7 +28,6 @@ impl Formatter {
                 side_by_side: false,
             } => "delta-inline",
             Self::Delta { side_by_side: true } => "delta-sbs",
-            Self::Fancy => "fancy",
         }
     }
 }
@@ -48,7 +46,6 @@ fn parse_args() -> Args {
         match arg.as_str() {
             "--delta"     => formatter = Formatter::Delta { side_by_side: false },
             "--delta-sbs" => formatter = Formatter::Delta { side_by_side: true },
-            "--fancy"     => formatter = Formatter::Fancy,
             "--columns" | "-n" => {
                 if let Some(v) = it.next() {
                     columns = v.parse().unwrap_or(columns);
@@ -133,14 +130,8 @@ fn format_lines(input: &[u8], formatter: Formatter, columns: usize) -> io::Resul
     let content = match formatter {
         Formatter::None => String::from_utf8_lossy(input).into_owned(),
         Formatter::Delta { side_by_side } => run_through_delta(input, side_by_side, col_width)?,
-        Formatter::Fancy => run_through_fancy(input)?,
     };
     Ok(content.lines().map(|line| line.to_owned()).collect())
-}
-
-fn run_through_fancy(input: &[u8]) -> io::Result<String> {
-    let mut cmd = Command::new("diff-so-fancy");
-    pipe_through(input, &mut cmd, "diff-so-fancy (npm install -g diff-so-fancy)")
 }
 
 fn run_loop(
@@ -199,11 +190,6 @@ fn run_loop(
                 }
                 (KeyCode::Char('r'), _) => {
                     let formatter = Formatter::None;
-                    let lines = format_lines(input, formatter, app.columns)?;
-                    app.replace_content(lines, formatter);
-                }
-                (KeyCode::Char('x'), _) => {
-                    let formatter = Formatter::Fancy;
                     let lines = format_lines(input, formatter, app.columns)?;
                     app.replace_content(lines, formatter);
                 }

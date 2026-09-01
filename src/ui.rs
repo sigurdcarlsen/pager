@@ -52,7 +52,7 @@ fn draw_statusbar(frame: &mut Frame, app: &App, page_height: usize, area: Rect) 
 
     let msg = format!(
         " lines {}-{}/{} {}%  cols:{} mode:{} \
-         j/k scroll · f/b page · +/- cols · v delta view · r raw · x fancy · q quit ",
+         j/k scroll · f/b page · +/- cols · v delta view · r raw · q quit ",
         app.offset + 1,
         visible_end,
         total,
